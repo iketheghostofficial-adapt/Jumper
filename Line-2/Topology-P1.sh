@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define your target IPs here
-TARGETS=("127.0.0.1" "10.0.2.15")
+TARGETS=("127.0.0.1")
 
 for IP in "${TARGETS[@]}"; do
     echo "------------------------------------------"
