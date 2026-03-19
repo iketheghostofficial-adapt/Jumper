@@ -5,7 +5,7 @@ TARGETS=("127.0.0.1" "10.0.2.15")
 
 for IP in "${TARGETS[@]}"; do
     echo "------------------------------------------"
-    echo "ENOMERATION REPORT FOR: $IP"
+    echo "ENUMERATION REPORT FOR: $IP"
     echo "------------------------------------------"
 
     # If IP is local, run directly. If remote, wrap in SSH.
