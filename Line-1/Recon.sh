@@ -1,31 +1,23 @@
 #!/bin/bash
-# Recon Dashboard - Simplified for CTF Speed
-# Purpose: Rapid discovery of vulnerable services on the Druida Asteroid network.
 
-TARGET_RANGE=$1
-OUTPUT_DIR="./recon_results_$(date +%Y%m%d)"
+TARGET=$1
+JUMPER_IP=$(hostname -I | awk '{print $1}')
 
-if [ -z "$TARGET_RANGE" ]; then
-    echo "Usage: ./recon.sh <IP_RANGE>"
-    exit 1
-fi
+echo "[+] Jumpbox Recon: $TARGET from $JUMPER_IP"
 
-mkdir -p "$OUTPUT_DIR"
-echo "--- Starting Reconnaissance on $TARGET_RANGE ---"
+# Stealth TCP SYN scan (avoids -sS which requires root)
+nmap -sS -T4 --min-rate 1000 -p- -oN recon-$TARGET.nmap $TARGET
 
-# 1. Fast Host Discovery
-echo "[*] Scanning for live hosts..."
-nmap -sn "$TARGET_RANGE" -oG - | awk '/Up$/{print $2}' > "$OUTPUT_DIR/live_hosts.txt"
+# UDP + service version + scripts
+nmap -sUV --script vuln -T4 -oN service-$TARGET.nmap $TARGET
 
-# 2. Service Audit on Live Hosts
-while read -r host; do
-    echo "[!] Auditing Host: $host"
-    
-    # Check for low-hanging fruit (Web, DB, Remote Access)
-    nmap -sV -p 21,22,80,443,445,3306,8080 --script=vuln "$host" > "$OUTPUT_DIR/$host_audit.txt" &
-    
-    # Grab banners for manual inspection
-    (sleep 1; echo "QUIT") | nc -nv "$host" 21 2>&1 | grep "220" >> "$OUTPUT_DIR/banners.txt"
-done < "$OUTPUT_DIR/live_hosts.txt"
+# Web stack fingerprint
+gobuster dir -u http://$TARGET -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,asp,aspx,jsp,html,js,css -t 50 -o web-$TARGET.txt 2>/dev/null &
+gobuster dns -d $TARGET -w /usr/share/wordlists/seclists/Discovery/DNS/subdomains-top1million-5000.txt -t 50 -o dns-$TARGET.txt 2>/dev/null &
 
-echo "--- Scan Complete. Results saved to $OUTPUT_DIR ---"
+# SMB/Win enum
+enum4linux -a $TARGET > smb-$TARGET.txt 2>/dev/null || echo "[!] enum4linux failed"
+
+wait
+cat *.txt > full-recon-$TARGET.txt
+echo "[+] Full recon complete: full-recon-$TARGET.txt"
